@@ -1,80 +1,86 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import produce from 'immer';
 
-const cellSize = 30;
+const cellSize = 20;
+
 const operations = [
   [0, 1],
   [0, -1],
-  [1, 0],
-  [1, 1],
   [1, -1],
-  [-1, 0],
   [-1, 1],
-  [-1, -1]
+  [1, 1],
+  [-1, -1],
+  [1, 0],
+  [-1, 0]
 ];
 
 const generateGrid = size => {
-  return new Array(size.w).fill(null).map(() => new Array(size.h).fill(0));
+  return Array(size.rows)
+    .fill(null)
+    .map(() => Array(size.cols).fill(0));
 };
 
 const generateRandomGrid = size => {
-  const rows = [];
-  for (let i = 0; i < size.w; i++) {
-    rows.push(Array.from(Array(size.h), () => (Math.random() > 0.8 ? 1 : 0)));
-  }
-  return rows;
+  return Array(size.rows)
+    .fill(null)
+    .map(() =>
+      Array(size.cols)
+        .fill(null)
+        .map(() => Math.floor(Math.random() * 2))
+    );
 };
 
 const getWindowSize = () => {
   return {
-    w: Math.floor(window.innerWidth / cellSize),
-    h: Math.floor(window.innerHeight / cellSize) - 3
+    cols: Math.floor(window.innerWidth / cellSize),
+    rows: Math.floor(window.innerHeight / cellSize) - 2
   };
 };
 
 const App = () => {
-  const [windowSize, setWindowSize] = useState(() => getWindowSize());
+  const [size, setWindowSize] = useState(() => getWindowSize());
+  const [grid, setGrid] = useState(() => generateGrid(size));
   const [running, setRunning] = useState(false);
-  const [grid, setGrid] = useState(() => generateGrid(windowSize));
 
-  const runRef = useRef(running);
-  runRef.current = running;
+  const runningRef = useRef(running);
+  runningRef.current = running;
 
   useEffect(() => {
     const handleResize = () => {
       setWindowSize(getWindowSize());
-      console.log(generateGrid(windowSize));
-      setGrid(generateGrid(windowSize));
+      setGrid(generateGrid(size));
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [windowSize]);
+  }, [size]);
 
-  const startSimulation = useCallback(() => {
-    if (!runRef.current) return;
+  const runSimulation = useCallback(() => {
+    if (!runningRef.current) return;
 
     setGrid(gridValue => {
       return produce(gridValue, gridCopy => {
-        for (let i = 0; i < grid.length; i++) {
-          for (let o = 0; o < grid[i].length; o++) {
+        for (let i = 0; i < size.rows; i++) {
+          for (let o = 0; o < size.cols; o++) {
             let neighbors = 0;
             operations.forEach(([x, y]) => {
               const newI = i + x;
               const newO = o + y;
-
               if (
                 newI >= 0 &&
-                newI < windowSize.w &&
+                newI < size.rows &&
                 newO >= 0 &&
-                newO < windowSize.h
+                newO < size.cols
               ) {
                 neighbors += gridValue[newI][newO];
               }
             });
 
+            // Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+            // Any live cell with more than three live neighbours dies, as if by overpopulation.
             if (neighbors < 2 || neighbors > 3) {
               gridCopy[i][o] = 0;
+              // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
             } else if (gridValue[i][o] === 0 && neighbors === 3) {
               gridCopy[i][o] = 1;
             }
@@ -83,8 +89,8 @@ const App = () => {
       });
     });
 
-    setTimeout(startSimulation, 100);
-  }, [grid, windowSize.h, windowSize.w]);
+    requestAnimationFrame(runSimulation);
+  }, [size.cols, size.rows]);
 
   return (
     <>
@@ -94,8 +100,8 @@ const App = () => {
           onClick={() => {
             setRunning(!running);
             if (!running) {
-              runRef.current = true;
-              startSimulation();
+              runningRef.current = true;
+              requestAnimationFrame(runSimulation);
             }
           }}
         >
@@ -103,14 +109,16 @@ const App = () => {
         </button>
         <button
           className='button'
-          onClick={() => setGrid(generateRandomGrid(windowSize))}
+          onClick={() => {
+            setGrid(generateRandomGrid(size));
+          }}
         >
-          Random
+          Randomize
         </button>
         <button
           className='button'
           onClick={() => {
-            setGrid(generateGrid(windowSize));
+            setGrid(generateGrid(size));
           }}
         >
           Clear
@@ -119,25 +127,25 @@ const App = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${windowSize.w}, ${cellSize}px)`
+          gridTemplateColumns: `repeat(${size.cols}, ${cellSize}px)`,
+          gridTemplateRows: `repeat(${size.rows}, ${cellSize}px)`
         }}
       >
         {grid.map((rows, i) =>
-          rows.map((cols, o) => (
+          rows.map((col, o) => (
             <div
+              key={`${i}-${o}`}
               className='entity'
-              key={`grid[${i}][${o}]`}
               onClick={() => {
                 const newGrid = produce(grid, gridCopy => {
-                  gridCopy[i][o] = gridCopy[i][o] ? 0 : 1;
+                  gridCopy[i][o] = grid[i][o] ? 0 : 1;
                 });
                 setGrid(newGrid);
               }}
               style={{
                 width: cellSize,
                 height: cellSize,
-                backgroundColor: grid[i][o] ? '#2dc7b2' : undefined,
-                border: '1px solid rgba(255,255,255,0.01)'
+                backgroundColor: grid[i][o] ? '#09d3ac' : undefined
               }}
             />
           ))
