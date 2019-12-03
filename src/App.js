@@ -118,6 +118,7 @@ const App = () => {
         <button
           className='button'
           onClick={() => {
+            setRunning(false);
             setGrid(generateGrid(size));
           }}
         >
