@@ -3,17 +3,6 @@ import produce from 'immer';
 
 const cellSize = 20;
 
-const operations = [
-  [0, 1],
-  [0, -1],
-  [1, -1],
-  [-1, 1],
-  [1, 1],
-  [-1, -1],
-  [1, 0],
-  [-1, 0]
-];
-
 const generateGrid = size => {
   return Array(size.rows)
     .fill(null)
@@ -62,26 +51,33 @@ const App = () => {
       return produce(gridValue, gridCopy => {
         for (let i = 0; i < size.rows; i++) {
           for (let o = 0; o < size.cols; o++) {
-            let neighbors = 0;
-            operations.forEach(([x, y]) => {
-              const newI = i + x;
-              const newO = o + y;
-              if (
-                newI >= 0 &&
-                newI < size.rows &&
-                newO >= 0 &&
-                newO < size.cols
-              ) {
-                neighbors += gridValue[newI][newO];
+            let neighbours = 0;
+
+            // Check cells around current cell
+            for (let x = -1; x < 2; x++) {
+              for (let y = -1; y < 2; y++) {
+                if (x === 0 && y === 0) continue;
+
+                const newI = i + x;
+                const newO = o + y;
+
+                if (
+                  newI >= 0 &&
+                  newI < size.rows &&
+                  newO >= 0 &&
+                  newO < size.cols
+                ) {
+                  neighbours += gridValue[newI][newO];
+                }
               }
-            });
+            }
 
             // Any live cell with fewer than two live neighbours dies, as if by underpopulation.
             // Any live cell with more than three live neighbours dies, as if by overpopulation.
-            if (neighbors < 2 || neighbors > 3) {
+            if (neighbours < 2 || neighbours > 3) {
               gridCopy[i][o] = 0;
               // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
-            } else if (gridValue[i][o] === 0 && neighbors === 3) {
+            } else if (gridValue[i][o] === 0 && neighbours === 3) {
               gridCopy[i][o] = 1;
             }
           }
